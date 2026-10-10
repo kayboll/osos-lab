@@ -19,6 +19,9 @@ PATCH_CALL(OSOS_ALBUM_ART_CLEAR_COLOR_CALL, OSOS_GLES_CLEAR_COLOR_X,
 PATCH_CALL(OSOS_ARTWORK_REFLECTION_BLEND_CALL, OSOS_RGB565_BLEND_FIXED,
            cfw_dark_mode_reflection_blend);
 
+/* Night Shift: display init loads the identity gamma ramp; load ours instead. */
+PATCH_CALL(OSOS_DISPLAY_INIT_GAMMA_CALL, OSOS_DISPLAY_SET_GAMMA, cfw_night_shift_init_gamma);
+
 /* Shared Settings hooks */
 PATCH_POINTER(OSOS_SETTINGS_PROPERTY_SLOT, OSOS_SETTINGS_PROPERTY, cfw_settings_property);
 PATCH_CALL(OSOS_PREFERENCES_LOAD_CALL, OSOS_PREFERENCES_LOAD, cfw_preferences_hook);
