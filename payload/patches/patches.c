@@ -86,6 +86,20 @@ PATCH_POINTER(OSOS_NOW_PLAYING_ACTION_SLOT, OSOS_NOW_PLAYING_ACTION,
               cfw_now_playing_action);
 PATCH_POINTER(OSOS_NOW_PLAYING_SECONDARY_ACTION_SLOT, OSOS_NOW_PLAYING_ACTION,
               cfw_now_playing_action);
+/* Audiobooks reuse the shuffle selector as a sleep timer selector. */
+PATCH_CALL(OSOS_NOW_PLAYING_RATING_FLAG_CALL, OSOS_MEDIA_ITEM_HAS_FLAG_8F01,
+           cfw_sleep_skip_flag);
+PATCH_CALL(OSOS_NOW_PLAYING_RATING_KIND_CALL, OSOS_MEDIA_ITEM_HAS_KIND_200000,
+           cfw_sleep_skip_kind);
+PATCH_CALL(OSOS_NOW_PLAYING_RATING_AUDIOBOOK_CALL, OSOS_MEDIA_ITEM_IS_AUDIOBOOK,
+           cfw_sleep_skip_audiobook);
+PATCH_CALL(OSOS_NOW_PLAYING_SHUFFLE_INIT_CALL, OSOS_NOW_PLAYING_SLIDER_SET,
+           cfw_sleep_slider_init);
+PATCH_CALL(OSOS_NOW_PLAYING_SHUFFLE_SELECT_COMMIT_CALL, OSOS_NOW_PLAYING_SHUFFLE_COMMIT,
+           cfw_sleep_commit);
+PATCH_CALL(OSOS_NOW_PLAYING_SHUFFLE_EXIT_COMMIT_CALL, OSOS_NOW_PLAYING_SHUFFLE_COMMIT,
+           cfw_sleep_commit);
+PATCH_POINTER(OSOS_BITMAP_VIEW_DRAW_SLOT, OSOS_BITMAP_VIEW_DRAW, cfw_sleep_bitmap_draw);
 PATCH_CALL(OSOS_TRACKDATA_DESTROY_STORAGE_CALL, OSOS_TRACKDATA_DESTROY_STORAGE,
            cfw_album_artist_destroy_tracks);
 /* Retain the Album Artist MHOD that the native importer discards. */
