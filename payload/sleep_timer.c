@@ -19,6 +19,7 @@ void cfw_sleep_timer_show(void *controller)
     uint32_t layout = resource_id("Alarms_Sleep_Timer_Screen_Default");
     if (!screen || !layout)
         return;
+    cfw_sleep_timer_sync();
 
     typedef void *(*registry)(void);
     typedef void *(*create)(void *, uint32_t, uint32_t, uint32_t);
@@ -43,8 +44,9 @@ void cfw_sleep_timer_show(void *controller)
 static int sleep_mode;
 static int sleep_choice;
 static void *sleep_slider;
-static uint32_t sleep_key; /* Our client key in the sleep timer's registry. */
-static const uint8_t sleep_minutes[] = {0, 30, 60};
+
+/* Stock Alarms list rows (minutes 0/15/30/60/90/120) for our Off/30/60. */
+static const uint8_t sleep_rows[] = {0, 2, 3};
 
 struct swap {
     const char *name;
@@ -84,31 +86,55 @@ static void set_sleep_mode(int sleep)
     sleep_mode = sleep;
 }
 
-static void *sleep_clients(void **service)
+/*
+ * The timer state lives in the Alarms controller singleton: its selected row
+ * (+0x48) and its client key in the sleep service. Both shortcuts go through
+ * its own choose method, so the stock list always shows the same state.
+ */
+static uint8_t *alarms(void)
 {
-    *service = ((void *(*)(void))OSOS_SLEEP_SERVICE)();
-    return *(void **)((uint8_t *)*service + 0x28);
+    return ((uint8_t *(*)(void))OSOS_ALARMS_CONTROLLER)();
 }
 
-static int sleep_active(void)
+static void alarms_choose(int row)
 {
-    void *service, *clients = sleep_clients(&service);
-    return ((int (*)(void *, void *))OSOS_SLEEP_CLIENTS_ACTIVE)(clients, &sleep_key);
+    ((void (*)(void *, int))OSOS_ALARMS_SLEEP_CHOOSE)(alarms(), row);
 }
 
-/* Same sequence as the stock Alarms sleep timer list (0x080fdf5c). */
-static void sleep_set(int choice)
+/* Selected stock row, or 0 when no timer is armed (or it already fired). */
+static int sleep_row(void)
 {
-    void *service, *clients = sleep_clients(&service);
-    unsigned minutes = sleep_minutes[choice];
-    int active = ((int (*)(void *, void *))OSOS_SLEEP_CLIENTS_ACTIVE)(clients, &sleep_key);
-    if (!active && minutes)
-        ((void (*)(void *, void *))OSOS_SLEEP_CLIENTS_ADD)(clients, &sleep_key);
-    if (minutes)
-        ((void (*)(void *, unsigned))OSOS_SLEEP_TIMER_SET)(service, minutes);
-    if (active && !minutes)
-        ((void (*)(void *, void *, int))OSOS_SLEEP_CLIENTS_REMOVE)(clients, &sleep_key, 0);
-    sleep_choice = choice;
+    uint8_t *ctl = alarms();
+    uint8_t *service = ((uint8_t *(*)(void))OSOS_SLEEP_SERVICE)();
+    void *clients = *(void **)(service + 0x28);
+    int row = *(int *)(ctl + 0x48);
+    if (!((int (*)(void *, void *))OSOS_SLEEP_CLIENTS_ACTIVE)(clients, ctl))
+        return 0;
+    if (*(uint32_t *)((uint8_t *)clients + 0x48c) == 0xffff) {
+        /* Fired: the stock list would still show the old row. */
+        alarms_choose(0);
+        return 0;
+    }
+    return row;
+}
+
+void cfw_sleep_timer_sync(void)
+{
+    sleep_row();
+}
+
+/* Off, or the nearest of 30/60 for any armed stock value. */
+static int sleep_current_choice(void)
+{
+    switch (sleep_row()) {
+    case 0:
+        return 0;
+    case 1:
+    case 2:
+        return 1;
+    default:
+        return 2;
+    }
 }
 
 typedef int (*item_check)(void *);
@@ -135,8 +161,7 @@ PATCH_ARM void cfw_sleep_slider_init(void *slider, int index)
 {
     if (sleep_mode) {
         sleep_slider = slider;
-        if (!sleep_active())
-            sleep_choice = 0;
+        sleep_choice = sleep_current_choice();
         index = sleep_choice;
     }
     ((void (*)(void *, int))OSOS_NOW_PLAYING_SLIDER_SET)(slider, index);
@@ -154,7 +179,7 @@ PATCH_ARM int cfw_sleep_commit(void *controller)
     if (changed && sleep_slider) {
         int choice = ((int (*)(void *))OSOS_NOW_PLAYING_SLIDER_GET)(sleep_slider);
         if (choice >= 0 && choice < 3)
-            sleep_set(choice);
+            alarms_choose(sleep_rows[choice]);
     }
     set_sleep_mode(0);
     return changed;
@@ -172,3 +197,4 @@ PATCH_ARM void cfw_sleep_bitmap_draw(void *view)
     }
     ((void (*)(void *))OSOS_BITMAP_VIEW_DRAW)(view);
 }
+

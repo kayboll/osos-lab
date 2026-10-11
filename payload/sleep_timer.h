@@ -4,5 +4,6 @@
 #define CFW_SLEEP_TIMER_H
 
 void cfw_sleep_timer_show(void *controller);
+void cfw_sleep_timer_sync(void);
 
 #endif
