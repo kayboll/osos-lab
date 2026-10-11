@@ -241,6 +241,7 @@ fn local_distribution_replays_from_saved_inputs() {
     let root = path("REPRISE_ASSEMBLY_ROOT");
     let build = path("REPRISE_ASSEMBLY_BUILD");
     let bundle = VerifiedBundle::load_local_zip(&path("REPRISE_TEST_PACKAGE"), "0.2.0").unwrap();
+    bootloader_fingerprint(&bundle).unwrap();
     let helper = reprise_device::UploadHelper::from_bytes(
         bundle.file("usb_helper", "image").unwrap(),
         bundle.file("usb_helper", "descriptor").unwrap(),
@@ -265,12 +266,46 @@ fn local_distribution_replays_from_saved_inputs() {
     .unwrap();
     assert_eq!(local_companion, artifacts.companion);
 
+    let size = SysCfg::parse(&nor).unwrap().size;
+    let record = nor[24..size]
+        .chunks_exact(20)
+        .position(|r| &r[..4] == b"rVwH")
+        .unwrap();
+    for hardware in [0u32, 0x02130000, 0x87654321, u32::MAX] {
+        let mut unknown_nor = nor.clone();
+        unknown_nor[24 + record * 20 + 8..24 + record * 20 + 12]
+            .copy_from_slice(&hardware.to_le_bytes());
+        assert!(assemble(&bundle, &prepared.apple_inputs().unwrap(), &unknown_nor).is_err());
+        let experimental = assemble_with_hardware_policy(
+            &bundle,
+            &prepared.apple_inputs().unwrap(),
+            &unknown_nor,
+            firmware::HardwarePolicy::AllowUnknown,
+        )
+        .unwrap();
+        assert_eq!(experimental.files(), artifacts.files());
+        assert_eq!(
+            SysCfg::parse(&unknown_nor)
+                .unwrap()
+                .identity()
+                .unwrap()
+                .hardware_version,
+            hardware
+        );
+    }
+
     assert_eq!(
         disk_bytes(&bundle).unwrap() as usize,
         artifacts.osos.len() + artifacts.companion.len()
     );
     for (name, bytes) in artifacts.files() {
-        assert_eq!(bytes, fs::read(build.join(name)).unwrap(), "{name}");
+        let local = fs::read(build.join(name)).unwrap();
+        assert!(
+            bytes == local,
+            "{name} differs: assembled SHA-256 {}, local SHA-256 {}",
+            sha256(bytes),
+            sha256(&local)
+        );
     }
 }
 
@@ -382,4 +417,94 @@ fn ffs_checksum_updates_only_the_data_checksum_and_rejects_invalid_headers() {
     }
     assert!(update_ffs_checksum(&mut image, usize::MAX).is_err());
     assert!(update_ffs_checksum(&mut image[..23], 0).is_err());
+}
+
+#[test]
+fn only_matching_bootloaders_are_kept() {
+    let fingerprint = |byte| BootloaderFingerprint::from_code(&[byte; 128], 0);
+    let expected = fingerprint(1);
+    for (byte, apple, expected_action) in [
+        (1, false, BootloaderAction::Keep),
+        (2, false, BootloaderAction::Upgrade),
+        (3, false, BootloaderAction::Upgrade),
+        (4, true, BootloaderAction::Install),
+    ] {
+        let report = BootloaderReport {
+            fingerprint: fingerprint(byte),
+            apple,
+            read_bytes: 0x880,
+        };
+        assert_eq!(
+            BootloaderAction::for_installed(&report, &expected),
+            expected_action
+        );
+    }
+    let report = BootloaderReport {
+        fingerprint: BootloaderFingerprint {
+            entrypoint: 4,
+            ..fingerprint(1)
+        },
+        apple: false,
+        read_bytes: 0x880,
+    };
+    assert_eq!(
+        BootloaderAction::for_installed(&report, &expected),
+        BootloaderAction::Upgrade
+    );
+}
+
+#[test]
+fn bundled_bootloader_fingerprint_requires_a_valid_image_and_entrypoint() {
+    let fixture = crate::tests::Fixture::new();
+    let mut bundle = VerifiedBundle::load(fixture.dir.path(), &fixture.key, "0.2.0").unwrap();
+    let offset = 0xb10usize;
+    let mut image = vec![0; offset + 128];
+    image[..8].copy_from_slice(b"87021.0\x03");
+    image[0x310..0x318].copy_from_slice(b"87021.0\x02");
+    image[0x31c..0x320].copy_from_slice(&128u32.to_le_bytes());
+    let expected = BootloaderFingerprint::from_code(&image[offset..], 0);
+    for entrypoint in [0u32, 128] {
+        image[0x318..0x31c].copy_from_slice(&entrypoint.to_le_bytes());
+        let descriptor = json!({"schema":1, "interface":INTERFACE,
+            "bytes":image.len(), "sha256":sha256(&image), "bootloader_offset":offset});
+        component(
+            &mut bundle,
+            "nor",
+            &[
+                ("image", image.clone()),
+                ("descriptor", serde_json::to_vec(&descriptor).unwrap()),
+            ],
+        );
+        let fingerprint = bootloader_fingerprint(&bundle);
+        if entrypoint == 128 {
+            assert!(fingerprint.is_err());
+        } else {
+            assert_eq!(fingerprint.unwrap(), expected);
+        }
+    }
+}
+
+#[test]
+fn experimental_companion_preserves_identity_and_layout_checks() {
+    use firmware::HardwarePolicy::AllowUnknown;
+    let reference = personalize_companion(vec![0; 0x2b800], &cfg()).unwrap();
+    for hardware in [0u32, 0x02130000, 0x87654321, u32::MAX] {
+        let mut config = cfg();
+        config.entries.get_mut("HwVr").unwrap()[4..8].copy_from_slice(&hardware.to_le_bytes());
+        let identity = config.identity().unwrap();
+        assert!(personalize_companion(vec![0; 0x2b800], &config).is_err());
+        assert_eq!(
+            personalize_companion_with_policy(vec![0; 0x2b800], &config, AllowUnknown).unwrap(),
+            reference
+        );
+        assert_eq!(config.identity().unwrap(), identity);
+        assert!(personalize_companion_with_policy(vec![0; 1], &config, AllowUnknown).is_err());
+        let mut occupied = vec![0; 0x2b800];
+        occupied[SYSINFO_OFFSET] = 1;
+        assert!(personalize_companion_with_policy(occupied, &config, AllowUnknown).is_err());
+        config.entries.remove("Codc");
+        assert!(
+            personalize_companion_with_policy(vec![0; 0x2b800], &config, AllowUnknown).is_err()
+        );
+    }
 }
