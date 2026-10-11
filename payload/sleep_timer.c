@@ -48,8 +48,6 @@ static void *sleep_slider;
 /* Stock Alarms list rows (minutes 0/15/30/60/90/120) for our Off/30/60. */
 static const uint8_t sleep_rows[] = {0, 2, 3};
 
-void *cfw_resource_lookup_original(void *service, uint32_t type, uint32_t id);
-
 static uint32_t label_ids[2];
 static const char *const labels[2] = {"30 min", "60 min"};
 
@@ -63,19 +61,19 @@ static void set_sleep_mode(int sleep)
 }
 
 /*
- * Every resource lookup walks the responder chain, where the language bank
- * answers before the base bank; swap the shuffle labels here so they are
- * replaced in every language.
+ * Views look strings up through the responder chain, where the language bank
+ * answers before the base bank; the shared resource lookup hook (assets.c)
+ * asks here first so the labels are replaced in every language.
  */
-PATCH_ARM void *cfw_resource_lookup(void *service, uint32_t type, uint32_t id)
+const void *cfw_sleep_timer_resource(uint32_t type, uint32_t id)
 {
     if (sleep_mode && type == TYPE_STR && id) {
         for (int i = 0; i < 2; i++) {
             if (id == label_ids[i])
-                return (void *)labels[i];
+                return labels[i];
         }
     }
-    return cfw_resource_lookup_original(service, type, id);
+    return 0;
 }
 
 /*
