@@ -33,8 +33,8 @@ void cfw_sleep_timer_show(void *controller)
 /*
  * Center-button sleep selector. Audiobooks skip the shuffle selector after
  * Rating; instead they get it as Off / 30 min / 60 min, without the shuffle
- * icon, and choosing a value sets the stock sleep timer. Labels are swapped in
- * the resource bank (text views re-read them); the icon's bitmap is cached by
+ * icon, and choosing a value sets the stock sleep timer. Labels are swapped at
+ * resource lookup (text views re-read them); the icon's bitmap is cached by
  * its view, so it is skipped at draw time instead.
  */
 #include "patch.h"
@@ -48,42 +48,34 @@ static void *sleep_slider;
 /* Stock Alarms list rows (minutes 0/15/30/60/90/120) for our Off/30/60. */
 static const uint8_t sleep_rows[] = {0, 2, 3};
 
-struct swap {
-    const char *name;
-    uint32_t type, id, size;
-    const void *original;
-};
+void *cfw_resource_lookup_original(void *service, uint32_t type, uint32_t id);
 
-static struct swap swaps[] = {
-    {"NowPlaying_ShuffleSongs_String", TYPE_STR, 0, 0, 0},
-    {"NowPlaying_ShuffleAlbums_String", TYPE_STR, 0, 0, 0},
-};
-
-static void swap_resources(int sleep)
-{
-    void *bank = osos_resource_bank();
-    for (unsigned i = 0; i < sizeof(swaps) / sizeof(swaps[0]); i++) {
-        struct swap *s = &swaps[i];
-        if (!s->id) {
-            s->id = resource_id(s->name);
-            if (!s->id)
-                continue;
-            s->original = osos_resource_get(bank, s->type, s->id, &s->size);
-        }
-        if (!s->original)
-            continue;
-        if (!sleep)
-            osos_resource_set(bank, s->type, s->id, s->original, s->size);
-        else
-            osos_resource_set(bank, s->type, s->id, i ? "60 min" : "30 min", 7);
-    }
-}
+static uint32_t label_ids[2];
+static const char *const labels[2] = {"30 min", "60 min"};
 
 static void set_sleep_mode(int sleep)
 {
-    if (sleep != sleep_mode)
-        swap_resources(sleep);
+    if (sleep && !label_ids[0]) {
+        label_ids[0] = resource_id("NowPlaying_ShuffleSongs_String");
+        label_ids[1] = resource_id("NowPlaying_ShuffleAlbums_String");
+    }
     sleep_mode = sleep;
+}
+
+/*
+ * Every resource lookup walks the responder chain, where the language bank
+ * answers before the base bank; swap the shuffle labels here so they are
+ * replaced in every language.
+ */
+PATCH_ARM void *cfw_resource_lookup(void *service, uint32_t type, uint32_t id)
+{
+    if (sleep_mode && type == TYPE_STR && id) {
+        for (int i = 0; i < 2; i++) {
+            if (id == label_ids[i])
+                return (void *)labels[i];
+        }
+    }
+    return cfw_resource_lookup_original(service, type, id);
 }
 
 /*
