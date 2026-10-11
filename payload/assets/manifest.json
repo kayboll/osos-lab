@@ -162,6 +162,12 @@
     "file": "dark/status-bar-battery-22.png"
   },
   {
+    "name": "NowPlaying_Dot_Image",
+    "type": "BMap",
+    "id": "0x0DAD0889",
+    "file": "dark/now-playing-dot.png"
+  },
+  {
     "name": "NowPlaying_White_Volume_Low_Image",
     "type": "BMap",
     "id": "0x0DAD088A",
@@ -196,5 +202,71 @@
     "type": "BMap",
     "id": "0x0DAD086F",
     "file": "dark/now-playing-play.png"
+  },
+  {
+    "name": "Media_AlbumsProxy_Image",
+    "type": "BMap",
+    "id": "0x0DAD071F",
+    "file": "dark/media-albums-proxy.png"
+  },
+  {
+    "name": "Media_AudioProxy_Image",
+    "type": "BMap",
+    "id": "0x0DAD0721",
+    "file": "dark/media-audio-proxy.png"
+  },
+  {
+    "name": "NowPlaying_Classic_Shuffle_Image",
+    "type": "BMap",
+    "id": "0x0DAD0868",
+    "file": "dark/now-playing-classic-shuffle.png"
+  },
+  {
+    "name": "NowPlaying_ProgressBar_Active_Background_Image",
+    "type": "BMap",
+    "id": "0x0DAD0882",
+    "file": "dark/now-playing-progress-bar-active-background.png"
+  },
+  {
+    "name": "No_Content_Albums_Small_Image",
+    "type": "BMap",
+    "id": "0x0DAD012F",
+    "file": "dark/no-content-albums-small.png"
+  },
+  {
+    "name": "DiskModeImage_Progress_Empty_LeftCap",
+    "type": "BMap",
+    "id": "0x0DAD0E0F",
+    "file": "dark/disk-mode-progress-empty-left-cap.png"
+  },
+  {
+    "name": "DiskModeImage_Progress_Empty_RightCap",
+    "type": "BMap",
+    "id": "0x0DAD0E10",
+    "file": "dark/disk-mode-progress-empty-right-cap.png"
+  },
+  {
+    "name": "DiskModeImage_Progress_Empty_Fill",
+    "type": "BMap",
+    "id": "0x0DAD0E11",
+    "file": "dark/disk-mode-progress-empty-fill.png"
+  },
+  {
+    "name": "System_ScrollbarTop_Image",
+    "type": "BMap",
+    "id": "0x0DAD0122",
+    "file": "dark/system-scrollbar-top.png"
+  },
+  {
+    "name": "System_ScrollbarCenter_Image",
+    "type": "BMap",
+    "id": "0x0DAD0123",
+    "file": "dark/system-scrollbar-center.png"
+  },
+  {
+    "name": "System_ScrollbarBottom_Image",
+    "type": "BMap",
+    "id": "0x0DAD0124",
+    "file": "dark/system-scrollbar-bottom.png"
   }
 ]
