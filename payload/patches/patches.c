@@ -124,3 +124,14 @@ PATCH_CALL(OSOS_RESOURCE_NEXT_TEMPLATE_CALL, OSOS_RESOURCE_NEXT, cfw_next_templa
 /* Report the non-European volume policy without changing SysInfo. */
 /* and r0, r0, #1 -> mov r0, #0 */
 PATCH_WORD(OSOS_REGIONAL_VOLUME_RESULT_WORD, 0xe2000001, 0xe3a00000);
+
+/* MP4 audio edit lists: the sample time (+0x90) is 64-bit, but these compares
+ * sign-extend its low word. Past 2^31 units (13:31:36 at 44.1 kHz) samples
+ * fall outside the edit and the track ends. Load the real high word instead
+ * (r2 already points past the time). */
+/* asr r1, r0, #31 -> ldr r1, [r2, #-0x1c] */
+PATCH_WORD(OSOS_MP4_AUDIO_EDIT_ADVANCE_WORD, 0xe1a01fc0, 0xe512101c);
+/* asr r1, r0, #31 -> ldr r1, [r2, #-0x14] */
+PATCH_WORD(OSOS_MP4_AUDIO_EDIT_START_WORD, 0xe1a01fc0, 0xe5121014);
+/* asr r1, r0, #31 -> ldr r1, [r2, #-0x1c] */
+PATCH_WORD(OSOS_MP4_AUDIO_EDIT_END_WORD, 0xe1a01fc0, 0xe512101c);
