@@ -84,6 +84,7 @@ pub(super) fn log_storage(raw: &[u8], log: &mut dyn FnMut(String)) -> Result<()>
         24 => "FAT32 legacy 16-bit volume size must be zero",
         25 => "FAT32 legacy 16-bit FAT size must be zero",
         26 => "unsupported FAT32 filesystem version",
+        27 => "Apple Partition Map detected; FAT32 with Master Boot Record (MBR) is required",
         _ => "unknown validation result",
     };
     log(format!(
@@ -148,7 +149,7 @@ pub(super) fn log_attempt(
     let rc = word(raw, 12) as i32;
     let repeat_rc = word(raw, 16) as i32;
     let result = word(raw, 24);
-    if slot > 4 || !matches!(mult, 1 | 2 | 4 | 8) || result > 7 {
+    if slot > 4 || !matches!(mult, 1 | 2 | 4 | 8) || result > 9 {
         return Err(invalid("Invalid storage read attempt"));
     }
     let label = if slot == 0 {
@@ -165,6 +166,8 @@ pub(super) fn log_attempt(
         5 => "invalid FAT sector size",
         6 => "skipped: partition exceeds disk or address range",
         7 => "other partition header",
+        8 => "inner MBR candidate",
+        9 => "inner FAT32 candidate",
         _ => unreachable!(),
     };
     let matches = if rc == 0 && repeat_rc == 0 {
