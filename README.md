@@ -47,6 +47,7 @@ RepriseOS package and builds a companion using that iPod's identity.
 - Album Artists browsing with Artist fallback and configurable menu visibility.
 - Dark Mode (work in progress), with an On/Off toggle below Brightness in Settings.
 - Night Shift, with an On/Off toggle below Dark Mode in Settings.
+- Sleep Timer shortcuts in Now Playing.
 
 **Album Artists** groups tracks by their Album Artist tag, using Artist when that
 field is empty. Show or hide the entry through Settings → Main Menu and Settings →
@@ -57,6 +58,12 @@ adjustments.
 
 **Night Shift** warms the whole screen through the display's gamma tables. It is
 off by default and the setting persists across reboots.
+
+**Sleep Timer** can be set without leaving Now Playing. Hold the center button
+and choose Sleep Timer to open the standard timer list; Menu returns to Now
+Playing. For audiobooks, which have no shuffle selector, pressing the center
+button past Rating shows Off, 30 min and 60 min instead. Both use the same timer
+as Extras → Alarms → Sleep Timer.
 
 The game SDK and [Doom port](doom/README.md) are unfinished.
 
