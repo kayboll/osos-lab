@@ -141,6 +141,9 @@ PATCH_POINTER(OSOS_IDLE_CLOCK_DESTROY_SLOT, OSOS_IDLE_CLOCK_DESTROY, cfw_idle_cl
 PATCH_POINTER(OSOS_IDLE_CLOCK_DELETE_SLOT, OSOS_IDLE_CLOCK_DELETE, cfw_idle_clock_delete);
 PATCH_CALL(OSOS_SLEEP_SERVICE_EVENT_CALL, OSOS_SLEEP_SERVICE_EVENT, cfw_sleep_service_event);
 
+/* Seek MP4 audio by chunk instead of sample by sample (payload/mp4_seek.c). */
+PATCH_POINTER(OSOS_MP4_SEEK_SLOT, OSOS_MP4_SEEK, cfw_mp4_seek);
+
 /* Resources */
 PATCH_CALL(OSOS_RESOURCE_INIT_CALL, OSOS_RESOURCE_BANK_INIT_OVERRIDES,
            cfw_resource_hook);
