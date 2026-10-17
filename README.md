@@ -46,6 +46,7 @@ RepriseOS package and builds a companion using that iPod's identity.
 - Song Info from song and Now Playing context menus.
 - Album Artists browsing with Artist fallback and configurable menu visibility.
 - Dark Mode (work in progress), with an On/Off toggle below Brightness in Settings.
+- Sleep Timer in the Now Playing context menu.
 
 **Album Artists** groups tracks by their Album Artist tag, using Artist when that
 field is empty. Show or hide the entry through Settings → Main Menu and Settings →
@@ -53,6 +54,10 @@ Music Menu.
 
 **Dark Mode** is off by default. Some screens and artwork still need visual
 adjustments.
+
+**Sleep Timer** can be set without leaving Now Playing. Hold the center button
+and choose Sleep Timer to open the standard timer list; Menu returns to Now
+Playing. It uses the same timer as Extras → Alarms → Sleep Timer.
 
 The game SDK and [Doom port](doom/README.md) are unfinished.
 
