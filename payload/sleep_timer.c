@@ -41,9 +41,10 @@ void cfw_sleep_timer_show(void *controller)
 
 #define TYPE_STR 0x53747220u
 
+/* Set by the Rating handler on every center-button cycle; kept while Now
+ * Playing is covered (context menu, Song Info), which restores the selector
+ * on return without passing through that handler again. */
 static int sleep_mode;
-static int sleep_choice;
-static void *sleep_slider;
 
 /* Stock Alarms list rows (minutes 0/15/30/60/90/120) for our Off/30/60. */
 static const uint8_t sleep_rows[] = {0, 2, 3};
@@ -147,13 +148,19 @@ PATCH_ARM int cfw_sleep_skip_audiobook(void *item)
     return sleep_mode ? 0 : ((item_check)OSOS_MEDIA_ITEM_IS_AUDIOBOOK)(item);
 }
 
+/* The selector's slider, looked up like the stock shuffle code does. */
+static void *selector_slider(void)
+{
+    void *view = ((void *(*)(void *, uint32_t))OSOS_UI_FIND_VIEW)(
+        ((void *(*)(void))OSOS_UI_SELECTION)(), OSOS_NOW_PLAYING_SELECTOR_VIEW);
+    return ((void *(*)(void *, uint32_t))OSOS_UI_VIEW_PROPERTY)(view,
+                                                               OSOS_SLIDER_PROPERTY);
+}
+
 PATCH_ARM void cfw_sleep_slider_init(void *slider, int index)
 {
-    if (sleep_mode) {
-        sleep_slider = slider;
-        sleep_choice = sleep_current_choice();
-        index = sleep_choice;
-    }
+    if (sleep_mode)
+        index = sleep_current_choice();
     ((void (*)(void *, int))OSOS_NOW_PLAYING_SLIDER_SET)(slider, index);
 }
 
@@ -166,12 +173,12 @@ PATCH_ARM int cfw_sleep_commit(void *controller)
     int changed = state[0xd9];
     *(int *)(state + 0xdc) = -1;
     state[0xd9] = 0;
-    if (changed && sleep_slider) {
-        int choice = ((int (*)(void *))OSOS_NOW_PLAYING_SLIDER_GET)(sleep_slider);
+    void *slider = changed ? selector_slider() : 0;
+    if (slider) {
+        int choice = ((int (*)(void *))OSOS_NOW_PLAYING_SLIDER_GET)(slider);
         if (choice >= 0 && choice < 3)
             alarms_choose(sleep_rows[choice]);
     }
-    set_sleep_mode(0);
     return changed;
 }
 
