@@ -12,6 +12,9 @@ void cfw_bitmap_cache_load_original(void *cache);
 PATCH_ARM const void *cfw_bitmap_resource_get(void *service, uint32_t type, uint32_t id)
 {
     if (type == OSOS_RESOURCE_BMAP && cfw_dark_mode_enabled()) {
+        uint32_t stock = cfw_dark_mode_bitmap_id(id);
+        if (stock)
+            return cfw_bitmap_resource_get_original(service, type, stock);
         for (uint32_t i = 0; i < cfw_bitmap_asset_count; i++) {
             if (cfw_bitmap_assets[i].id == id)
                 return cfw_bitmap_assets[i].data;
@@ -91,8 +94,17 @@ PATCH_ARM void cfw_bitmap_cache_load(void *cache)
     void *bitmap = osos_bitmap_cache_bitmap(cache);
     const unsigned char *pixels = osos_bitmap_pixels(bitmap);
     int dark = cfw_dark_mode_enabled();
-    const struct cfw_bitmap_asset *asset = find_asset(
-        service, osos_bitmap_cache_id(cache), pixels, dark);
+    uint32_t id = osos_bitmap_cache_id(cache);
+    uint32_t stock = cfw_dark_mode_bitmap_id(id);
+    if (stock) {
+        /* Stock dark variant: follow the mode when the cache is drawn again. */
+        const unsigned char *data = cfw_bitmap_resource_get_original(
+            service, OSOS_RESOURCE_BMAP, dark ? stock : id);
+        if (data && pixels != data + OSOS_BMAP_HEADER_SIZE)
+            osos_bitmap_load_resource(bitmap, data);
+        return;
+    }
+    const struct cfw_bitmap_asset *asset = find_asset(service, id, pixels, dark);
     if (!asset || (pixels == asset->data + OSOS_BMAP_HEADER_SIZE) == dark)
         return;
     const void *data = dark ? asset->data :

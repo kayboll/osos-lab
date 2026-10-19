@@ -95,6 +95,72 @@ const void *cfw_dark_mode_color(uint32_t id, const void *color)
     return &light;
 }
 
+/*
+ * The Now Playing option bar (shuffle and audiobook sleep selector) is drawn from
+ * light well and thumb bitmaps. The firmware ships a dark variant of the same bar
+ * for its black screens; serve that one instead, by name, so no artwork is copied.
+ */
+static const char *const option_bar_names[][2] = {
+    {"OptionBar_NowPlaying_Well_LeftCap_Image", "OptionBar_Black_Well_LeftCap_Image"},
+    {"OptionBar_NowPlaying_Well_Center_Image", "OptionBar_Black_Well_Center_Image"},
+    {"OptionBar_NowPlaying_Well_RightCap_Image", "OptionBar_Black_Well_RightCap_Image"},
+    {"OptionBar_NowPlaying_Thumb_LeftCap_Image", "OptionBar_Black_Thumb_LeftCap_Image"},
+    {"OptionBar_NowPlaying_Thumb_Center_Image", "OptionBar_Black_Thumb_Center_Image"},
+    {"OptionBar_NowPlaying_Thumb_RightCap_Image", "OptionBar_Black_Thumb_RightCap_Image"},
+};
+#define OPTION_BAR_IMAGES (sizeof(option_bar_names) / sizeof(option_bar_names[0]))
+
+static uint32_t resource_id(const char *text)
+{
+    struct osos_string name;
+    osos_string_init(&name, text);
+    uint32_t id = *osos_resource_name_slot(&name);
+    osos_string_destroy(&name);
+    return id;
+}
+
+uint32_t cfw_dark_mode_bitmap_id(uint32_t id)
+{
+    static uint32_t ids[OPTION_BAR_IMAGES][2];
+    if (!ids[0][0]) {
+        for (uint32_t i = 0; i < OPTION_BAR_IMAGES; i++) {
+            ids[i][0] = resource_id(option_bar_names[i][0]);
+            ids[i][1] = resource_id(option_bar_names[i][1]);
+        }
+    }
+    for (uint32_t i = 0; i < OPTION_BAR_IMAGES; i++) {
+        if (id == ids[i][0] && ids[i][1])
+            return ids[i][1];
+    }
+    return 0;
+}
+
+/*
+ * Option bar labels: the widget keeps a normal and a selected text color
+ * (dark gray and dark blue) and draws through its graphics context at +0xd8.
+ * Only bars drawn from the replaced Now Playing images get light labels.
+ */
+enum {
+    OPTION_BAR_CONTEXT = 0xd8,
+    OPTION_BAR_WELL_CACHE = 0x1b4,
+    OPTION_BAR_SELECTED_COLOR = 0x1d0,
+    OPTION_BAR_TEXT_LIGHT = 0xd8,
+};
+
+PATCH_ARM void cfw_dark_mode_option_bar_color(void *context, const unsigned char *color)
+{
+    unsigned char mapped[4];
+    unsigned char *bar = (unsigned char *)context - OPTION_BAR_CONTEXT;
+    void *well = *(void **)(bar + OPTION_BAR_WELL_CACHE);
+    if (enabled && well && cfw_dark_mode_bitmap_id(osos_bitmap_cache_id(well))) {
+        mapped[0] = mapped[1] = mapped[2] =
+            color == bar + OPTION_BAR_SELECTED_COLOR ? 0xff : OPTION_BAR_TEXT_LIGHT;
+        mapped[3] = color[3];
+        color = mapped;
+    }
+    osos_graphics_set_color(context, color);
+}
+
 PATCH_ARM void cfw_dark_mode_fill(void *surface, const void *rect,
                                 const unsigned char *color, uint32_t mode,
                                 void *clip)
